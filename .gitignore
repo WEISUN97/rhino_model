@@ -1,0 +1,5 @@
+# /result/
+# /result_all/
+# *.log
+.DS_Store
+.venv/
