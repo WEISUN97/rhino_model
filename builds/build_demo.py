@@ -18,12 +18,16 @@ def build_model():
     tools.add_to_layer(
         tools.create_line((0.0, -5.0, 0.0), (12.0, -5.0, 0.0)), layer_name
     )
+    # surface
     tools.add_to_layer(tools.create_rectangle((0.0, -2.0, 0.0), 12.0, 6.0), layer_name)
     tools.add_to_layer(tools.create_circle((6.0, 10.0, 0.0), 4.0), layer_name)
 
-    tools.add_to_layer(tools.create_box(box_l, box_w, box_h), layer_name)
-    tools.add_to_layer(
-        tools.create_sphere(sphere_radius, center=(35.0, 5.0, sphere_radius)),
+    # 3D objects
+    box = tools.add_to_layer(
+        tools.create_box(box_l, box_w, box_h, origin=(0.0, 0.0, 0.0)), layer_name
+    )
+    sphere = tools.add_to_layer(
+        tools.create_sphere(sphere_radius, center=(0, 5.0, sphere_radius)),
         layer_name,
     )
     tools.add_to_layer(
@@ -33,4 +37,8 @@ def build_model():
         layer_name,
     )
 
+    # boolean operations
+    tools.boolean_difference([box], [sphere])
+
+    ###
     tools.finish_model()

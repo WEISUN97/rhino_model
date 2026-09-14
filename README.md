@@ -10,7 +10,7 @@
 ## 文件说明
 
 - `tools.py`
-  - 通用 Rhino 建模函数：图层清理、Point、Line、Rectangle、Circle、Box、Sphere、Cylinder
+  - 通用 Rhino 建模函数：基础几何、布尔运算、阵列、镜像、移动、旋转、多边形、由多边形生成面、由面生成实体
 - `build_demo.py`
   - 一个独立模型；在这里写参数和 `build_model()`
   - 可复制为其他模型文件，例如 `build_house.py`
@@ -35,6 +35,31 @@
 - Cylinder
 
 其中 `Box`、`Sphere`、`Cylinder` 会左右排开，避免重叠，便于确认更新是否生效。
+
+## tools.py 常用函数
+
+所有函数接收 Rhino 对象 ID，并返回新对象 ID 或新对象 ID 列表。`boolean_union()` 和 `boolean_difference()` 默认删除参与运算的原实体；传入 `delete_input=False` 可以保留它们。
+
+```python
+# 布尔运算：参数是 Brep 对象 ID 的列表
+joined_ids = tools.boolean_union([box_id, sphere_id])
+cut_ids = tools.boolean_difference([box_id], [cylinder_id])
+
+# 阵列：计数包含原对象
+tools.rectangular_array(box_id, 4, 3, 25.0, 15.0)
+tools.circular_array(box_id, center=(0.0, 0.0, 0.0), count=8)
+
+# 变换：镜像默认复制；其他变换默认移动原对象
+tools.mirror(box_id, plane_normal=(1.0, 0.0, 0.0))
+tools.move(box_id, (10.0, 0.0, 0.0))
+tools.rotate_2d(box_id, 45.0)
+tools.rotate_3d(box_id, 30.0, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+
+# 多边形 -> 面 -> 实体
+polygon_id = tools.create_polygon(center=(0.0, 0.0), radius=10.0, sides=6)
+face_id = tools.polygon_to_face(polygon_id)
+solid_id = tools.face_to_solid(face_id, height=5.0)
+```
 
 ## 首次在 Rhino 8 中运行
 
