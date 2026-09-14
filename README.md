@@ -59,6 +59,26 @@ tools.rotate_3d(box_id, 30.0, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
 polygon_id = tools.create_polygon(center=(0.0, 0.0), radius=10.0, sides=6)
 face_id = tools.polygon_to_face(polygon_id)
 solid_id = tools.face_to_solid(face_id, height=5.0)
+
+# 任意路径曲线 -> 矩形/圆形截面实体；路径曲线会保留
+path_id = tools.create_line((0.0, 0.0, 0.0), (0.0, 0.0, 30.0))
+rect_solid_id = tools.solid_from_path(
+    path_id, "rectangle", width=8.0, height=4.0
+)
+round_solid_id = tools.solid_from_path(path_id, "circle", radius=3.0)
+
+# 闭合多边形路径同样可用
+hexagon_id = tools.create_polygon(center=(0.0, 0.0), radius=10.0, sides=6)
+hexagon_solid_id = tools.solid_from_path(
+    hexagon_id, "rectangle", width=2.0, height=4.0
+)
+
+# 圆角：默认圆角全部边；返回结果 ID 列表并默认删除原 Brep
+filleted_ids = tools.fillet_edges(rect_solid_id, radius=0.5)
+# 或者只圆角指定边，例如第 0、2、6、8 条边：
+# filleted_ids = tools.fillet_edges(
+#     rect_solid_id, radius=0.5, edge_indices=[0, 2, 6, 8]
+# )
 ```
 
 ## 首次在 Rhino 8 中运行
@@ -202,3 +222,7 @@ box_l = 40.0
 你也可以改 `sphere_radius`、`cylinder_height` 或对象的位置。
 
 只要重新运行 `launcher.py` 后模型变化了，就说明当前工作流已经成立。
+
+## 直接运行构建文件
+
+`builds/build_demo.py` 最后一个 `# %% Run in Rhino` 单元会调用 `run_rhino.run_in_rhino()`。因此在 VS Code 直接运行该文件，或在 Jupyter Interactive Window 单独运行最后一个单元，都能把最新保存的 demo 发送到 Rhino 执行。

@@ -280,3 +280,98 @@ def face_to_solid(face_id, height, direction=(0.0, 0.0, 1.0)):
         return None
     attributes = _find_object(face_id).Attributes.Duplicate()
     return sc.doc.Objects.AddBrep(solid, attributes)
+
+
+def solid_from_path(path_id, section, width=None, height=None, radius=None):
+    """Sweep a rectangular or circular section along an open or closed curve.
+
+    section must be "rectangle" or "circle". The path is kept in the document.
+    """
+    curve = _find_object(path_id).Geometry
+    tolerance = sc.doc.ModelAbsoluteTolerance
+    if not isinstance(curve, Rhino.Geometry.Curve) or curve.GetLength() <= tolerance:
+        raise ValueError("solid_from_path requires a non-zero-length curve object ID.")
+
+    if section == "rectangle":
+        if width is None or height is None or width <= 0.0 or height <= 0.0:
+            raise ValueError("Rectangle section requires positive width and height.")
+
+        tangent = curve.TangentAtStart
+        if not tangent.Unitize():
+            raise ValueError("Path curve has no valid tangent at its start.")
+        profile_plane = Rhino.Geometry.Plane(curve.PointAtStart, tangent)
+        profile = Rhino.Geometry.Rectangle3d(
+            profile_plane,
+            Rhino.Geometry.Interval(-width / 2.0, width / 2.0),
+            Rhino.Geometry.Interval(-height / 2.0, height / 2.0),
+        ).ToNurbsCurve()
+        # Segmented sweep handles polyline kinks such as a hexagon's corners.
+        solids = Rhino.Geometry.Brep.CreateFromSweepSegmented(
+            curve, profile, curve.IsClosed, tolerance
+        )
+        if not curve.IsClosed:
+            solids = [solid.CapPlanarHoles(tolerance) for solid in solids]
+        if not solids or any(solid is None for solid in solids):
+            raise RuntimeError(
+                "Rhino could not create a capped rectangular path solid."
+            )
+    elif section == "circle":
+        if radius is None or radius <= 0.0:
+            raise ValueError("Circle section requires a positive radius.")
+        cap_mode = (
+            getattr(Rhino.Geometry.PipeCapMode, "None")
+            if curve.IsClosed
+            else Rhino.Geometry.PipeCapMode.Flat
+        )
+        solids = Rhino.Geometry.Brep.CreatePipe(
+            curve,
+            radius,
+            False,
+            cap_mode,
+            False,
+            tolerance,
+            sc.doc.ModelAngleToleranceRadians,
+        )
+        if not solids:
+            raise RuntimeError("Rhino could not create a circular path solid.")
+    else:
+        raise ValueError('section must be "rectangle" or "circle".')
+
+    attributes = _find_object(path_id).Attributes.Duplicate()
+    result_ids = [sc.doc.Objects.AddBrep(solid, attributes) for solid in solids]
+    return result_ids[0] if len(result_ids) == 1 else result_ids
+
+
+def solid_from_line_path(path_id, section, width=None, height=None, radius=None):
+    """Backward-compatible name for solid_from_path()."""
+    return solid_from_path(path_id, section, width, height, radius)
+
+
+def fillet_edges(object_id, radius, edge_indices=None, delete_input=True):
+    """Round selected Brep edges, or all edges when edge_indices is omitted."""
+    brep = _find_object(object_id).Geometry
+    if not isinstance(brep, Rhino.Geometry.Brep):
+        raise ValueError("fillet_edges requires a Brep object ID.")
+    if radius <= 0.0:
+        raise ValueError("Fillet radius must be positive.")
+
+    if edge_indices is None:
+        edge_indices = list(range(brep.Edges.Count))
+    else:
+        edge_indices = list(edge_indices)
+    if not edge_indices:
+        raise ValueError("Select at least one Brep edge to fillet.")
+    if min(edge_indices) < 0 or max(edge_indices) >= brep.Edges.Count:
+        raise ValueError("An edge index is outside the Brep edge range.")
+
+    radii = [radius] * len(edge_indices)
+    results = Rhino.Geometry.Brep.CreateFilletEdges(
+        brep,
+        edge_indices,
+        radii,
+        radii,
+        Rhino.Geometry.BlendType.Fillet,
+        Rhino.Geometry.RailType.RollingBall,
+        sc.doc.ModelAbsoluteTolerance,
+    )
+    return _add_boolean_results(results, object_id, [object_id], delete_input)
