@@ -51,4 +51,4 @@ def main(message):
 
 
 if __name__ == "__main__":
-    main("tools update")
+    main("auto run")

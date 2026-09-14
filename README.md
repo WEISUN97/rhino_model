@@ -101,6 +101,14 @@ VS Code 修改 tools.py / build_demo.py
 Rhino 删除旧的 GeneratedGeometry 对象并生成新的模型
 ```
 
+## 从 VS Code 运行 Rhino
+
+在 macOS 上，可以直接运行 `run_rhino.py`。它会激活 Rhino、运行 `_RunPythonScript`，再自动在文件选择框中定位并打开 `launcher.py`。Rhino 仍是实际执行建模代码的程序。
+
+首次运行时，macOS 可能要求授权 VS Code（或你用来运行此文件的终端）控制电脑。在 `System Settings > Privacy & Security > Accessibility` 中允许它，然后再运行。运行时会暂时覆盖系统剪贴板内容。
+
+如果输出提示找不到 Rhino，把 `run_rhino.py` 中的 `RHINO_APP_NAME` 改为 macOS 应用列表里显示的名称，例如 `Rhinoceros` 或 `Rhino 8`。
+
 ## 关于更新机制
 
 每次运行 `build_model()` 时会执行：
