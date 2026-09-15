@@ -1,19 +1,43 @@
 """Run launcher.py in the frontmost Rhino 8 window from VS Code on macOS."""
 
 from pathlib import Path
+import re
 import subprocess
 
 
 # If macOS reports that Rhino is not running, replace this with its app name.
 RHINO_APP_NAME = "Rhino 8"
 LAUNCHER_PATH = Path(__file__).with_name("launcher.py")
+BUILD_MODULE_PATTERN = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*")
 
 
 def escape_applescript(value):
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def run_in_rhino():
+def set_build_module(build_module):
+    """Write the selected build module into launcher.py before Rhino reloads it."""
+    if not BUILD_MODULE_PATTERN.fullmatch(build_module):
+        raise ValueError("build_module must be a dotted Python module name.")
+
+    launcher_text = LAUNCHER_PATH.read_text(encoding="utf-8")
+    updated_text, replacements = re.subn(
+        r"^BUILD_MODULE\s*=\s*.*$",
+        'BUILD_MODULE = "{0}"'.format(build_module),
+        launcher_text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if replacements != 1:
+        raise RuntimeError("Could not find BUILD_MODULE in launcher.py")
+    LAUNCHER_PATH.write_text(updated_text, encoding="utf-8")
+    print("Selected Rhino build module:", build_module)
+
+
+def run_in_rhino(build_module=None):
+    if build_module:
+        set_build_module(build_module)
+
     command = "_RunPythonScript"
     script = '''
 tell application "{app_name}" to activate

@@ -38,7 +38,7 @@
 
 ## tools.py 常用函数
 
-所有函数接收 Rhino 对象 ID，并返回新对象 ID 或新对象 ID 列表。`boolean_union()` 和 `boolean_difference()` 默认删除参与运算的原实体；传入 `delete_input=False` 可以保留它们。
+所有操作函数都可接收单个 Rhino 对象 ID 或 `list`/`tuple` ID。单对象输入保留原返回行为；多个对象输入返回结果 ID 列表。`boolean_union()` 和 `boolean_difference()` 例外：它们的列表表示一次布尔运算的对象集合。两者默认删除参与运算的原实体；传入 `delete_input=False` 可以保留它们。
 
 ```python
 # 布尔运算：参数是 Brep 对象 ID 的列表
@@ -54,6 +54,10 @@ tools.mirror(box_id, plane_normal=(1.0, 0.0, 0.0))
 tools.move(box_id, (10.0, 0.0, 0.0))
 tools.rotate_2d(box_id, 45.0)
 tools.rotate_3d(box_id, 30.0, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+
+# 多对象操作
+tools.move([box_id, sphere_id], (10.0, 0.0, 0.0), copy=True)
+tools.mirror([box_id, sphere_id], plane_normal=(1.0, 0.0, 0.0))
 
 # 多边形 -> 面 -> 实体
 polygon_id = tools.create_polygon(center=(0.0, 0.0), radius=10.0, sides=6)
@@ -72,6 +76,27 @@ hexagon_id = tools.create_polygon(center=(0.0, 0.0), radius=10.0, sides=6)
 hexagon_solid_id = tools.solid_from_path(
     hexagon_id, "rectangle", width=2.0, height=4.0
 )
+
+# 多条路径 -> 多个实体
+solid_ids = tools.solid_from_path([path_id, hexagon_id], "circle", radius=1.0)
+
+# 曲线修剪：保留归一化参数 0.0 到 1.0 之间的片段
+half_curve_id = tools.trim_curve(path_id, 0.0, 0.5, delete_input=False)
+
+# 实体修剪：封闭 cutter 默认保留内部；keep_inside=False 保留外部
+trimmed_ids = tools.trim_brep([box_id, sphere_id], cutter_id, keep_inside=True)
+
+# 平面 cutter：以平面为基准切掉一侧，保留法线反方向
+kept_ids = tools.trim_brep_by_plane(
+    box_id,
+    cutter_origin=(10.0, 0.0, 0.0),
+    cutter_normal=(1.0, 0.0, 0.0),
+    keep_negative_side=True,
+)
+
+# 删除一个或多个对象
+tools.delete_object(path_id)
+deleted_ids = tools.delete_objects(solid_ids)
 
 # 圆角：默认圆角全部边；返回结果 ID 列表并默认删除原 Brep
 filleted_ids = tools.fillet_edges(rect_solid_id, radius=0.5)
@@ -196,6 +221,10 @@ BUILD_MODULE = "build_house"
 
 保存后运行 launcher，Rhino 会重载 `tools.py` 和 `build_house.py`，并生成该模型。
 
+`builds/build_mesh.py` 是一个六边形线网格示例。修改其中的 `SMALL_HEX_SIDE` 和 `HEXES_PER_BIG_HEX_SIDE` 后保存并运行，即可控制小六边形边长和大六边形每边的小六边形数量。
+
+如需自定义组合，直接替换 `build_mesh.py` 中的 `HEXAGON_CENTERS` 列表；列表每一项是一个小六边形中心点，例如 `[(0.0, 0.0, 0.0), (3.0, 1.732, 0.0)]`。
+
 ## 如何验证 reload 确实生效
 
 最简单的验证方法：
@@ -226,3 +255,5 @@ box_l = 40.0
 ## 直接运行构建文件
 
 `builds/build_demo.py` 最后一个 `# %% Run in Rhino` 单元会调用 `run_rhino.run_in_rhino()`。因此在 VS Code 直接运行该文件，或在 Jupyter Interactive Window 单独运行最后一个单元，都能把最新保存的 demo 发送到 Rhino 执行。
+
+从 VS Code 或 Jupyter 运行任意 `builds/build_*.py` 时，运行器会自动根据当前文件名更新 `launcher.py` 的 `BUILD_MODULE`，再启动 Rhino。例如运行 `build_mesh.py` 会自动选择 `builds.build_mesh`，不再需要手动修改 launcher。
