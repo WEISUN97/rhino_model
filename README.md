@@ -94,6 +94,20 @@ kept_ids = tools.trim_brep_by_plane(
     keep_negative_side=True,
 )
 
+# Split 式实体 Trim：先删除 cutter 内部块，再删除包含 remove_point 的块
+kept_ids = tools.trim_brep_by_cutter(
+    box_id,
+    cutter_id,
+    remove_point=(18.0, 5.0, 2.5),
+)
+
+# 删除多个点击点所在的分块
+kept_ids = tools.trim_brep_by_cutter(
+    [box_id_a, box_id_b],
+    cutter_id,
+    remove_points=[(2.0, 5.0, 2.5), (18.0, 5.0, 2.5)],
+)
+
 # 删除一个或多个对象
 tools.delete_object(path_id)
 deleted_ids = tools.delete_objects(solid_ids)

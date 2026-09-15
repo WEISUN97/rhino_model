@@ -28,7 +28,9 @@ def build_model():
         tools.create_box(box_l, box_w, box_h, origin=(0.0, 0.0, 0.0)), layer_name
     )
     box2 = tools.add_to_layer(
-        tools.create_box(5, 20, 10, origin=(10.0, -5.0, -5.0)), layer_name
+        # This cutter fully passes through box1's right half.
+        tools.create_box(2.0, 20.0, 20.0, origin=(10.0, -5.0, -5.0)),
+        layer_name,
     )
     sphere = tools.add_to_layer(
         tools.create_sphere(sphere_radius, center=(0, 5.0, sphere_radius)),
@@ -53,7 +55,9 @@ def build_model():
 
     # path
     path = tools.solid_from_path(hexagon, "rectangle", width=1.0, height=2.0)
-    tools.trim_brep([box1], box2, delete_input=True, keep_inside=True)
+
+    # Click the right side to remove it and keep box1's left half.
+    tools.trim_brep_by_cutter(box1, box2, remove_point=(5, 2.0, 2))
     ###
     tools.finish_model()
 

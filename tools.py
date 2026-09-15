@@ -579,3 +579,117 @@ def trim_brep_by_plane(
     for brep_id in brep_ids:
         result_ids.extend(_trim_single_brep_by_plane(brep_id, plane, delete_input))
     return result_ids
+
+
+def _normalise_remove_points(remove_point, remove_points):
+    if remove_point is not None and remove_points is not None:
+        raise ValueError("Use remove_point or remove_points, not both.")
+    if remove_points is not None:
+        return list(remove_points)
+    return [] if remove_point is None else [remove_point]
+
+
+def _trim_single_brep_by_cutter(brep_id, cutter_id, remove_points, delete_input):
+    brep = _find_object(brep_id).Geometry
+    cutter = _find_object(cutter_id).Geometry
+    if not isinstance(brep, Rhino.Geometry.Brep) or not brep.IsSolid:
+        raise ValueError("trim_brep_by_cutter requires a closed Brep object ID.")
+    if not isinstance(cutter, Rhino.Geometry.Brep) or not cutter.IsSolid:
+        raise ValueError("trim_brep_by_cutter requires a closed Brep cutter ID.")
+
+    tolerance = sc.doc.ModelAbsoluteTolerance
+    pieces = brep.Split(cutter, tolerance)
+    if not pieces:
+        raise RuntimeError("Cutter did not split the target Brep.")
+
+    # Brep.Split can leave planar cut faces open. Cap them before testing volume.
+    capped_pieces = []
+    for piece in pieces:
+        if not piece.IsSolid:
+            capped = piece.CapPlanarHoles(tolerance)
+            if capped is not None:
+                piece = capped
+        if not piece.IsSolid:
+            raise RuntimeError(
+                "Cutter produced a non-solid split part that could not be capped. "
+                "Use a closed cutter that intersects the target cleanly."
+            )
+        capped_pieces.append(piece)
+    pieces = capped_pieces
+
+    remove_indices = set()
+    for index, piece in enumerate(pieces):
+        properties = Rhino.Geometry.VolumeMassProperties.Compute(piece)
+        if properties and cutter.IsPointInside(properties.Centroid, tolerance, False):
+            remove_indices.add(index)
+
+    for point_value in remove_points:
+        point = _point3d(point_value)
+        if not brep.IsPointInside(point, tolerance, False):
+            raise ValueError("Every remove point must be inside the target Brep.")
+        matching_indices = [
+            index
+            for index, piece in enumerate(pieces)
+            if piece.IsPointInside(point, tolerance, False)
+        ]
+        if not matching_indices:
+            raise ValueError("A remove point does not fall inside a split Brep part.")
+        remove_indices.update(matching_indices)
+
+    kept_pieces = [
+        piece for index, piece in enumerate(pieces) if index not in remove_indices
+    ]
+    if not kept_pieces:
+        raise RuntimeError("Cutter and remove points would remove the entire target Brep.")
+    return _add_boolean_results(kept_pieces, brep_id, [brep_id], delete_input)
+
+
+def trim_brep_by_cutter(
+    brep_ids,
+    cutter_id,
+    remove_point=None,
+    delete_input=True,
+    remove_points=None,
+):
+    """Split closed Breps with a cutter and remove selected parts.
+
+    Parts inside the closed cutter are removed first. remove_point or
+    remove_points then remove the parts containing those interior points.
+    The cutter is preserved.
+    """
+    points = _normalise_remove_points(remove_point, remove_points)
+    if not _is_object_list(brep_ids):
+        return _trim_single_brep_by_cutter(
+            brep_ids, cutter_id, points, delete_input
+        )
+
+    # A point only applies to the target solid that contains it.
+    tolerance = sc.doc.ModelAbsoluteTolerance
+    target_breps = []
+    for brep_id in brep_ids:
+        brep = _find_object(brep_id).Geometry
+        if not isinstance(brep, Rhino.Geometry.Brep) or not brep.IsSolid:
+            raise ValueError("trim_brep_by_cutter requires closed Brep object IDs.")
+        target_breps.append((brep_id, brep))
+
+    for point_value in points:
+        point = _point3d(point_value)
+        if not any(
+            brep.IsPointInside(point, tolerance, False)
+            for _, brep in target_breps
+        ):
+            raise ValueError("Every remove point must be inside one target Brep.")
+
+    result_ids = []
+    for brep_id, brep in target_breps:
+        target_points = [
+            point_value
+            for point_value in points
+            if brep.IsPointInside(_point3d(point_value), tolerance, False)
+        ]
+        result_ids.extend(
+            _trim_single_brep_by_cutter(
+                brep_id, cutter_id, target_points, delete_input
+            )
+        )
+    return result_ids

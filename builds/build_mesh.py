@@ -2,7 +2,7 @@ import math
 
 # %% Parameters
 SMALL_HEX_SIDE = 2.0
-HEXES_PER_BIG_HEX_SIDE = 5
+HEXES_PER_BIG_HEX_SIDE = 3
 
 
 def _hex_center(q, r, side):
