@@ -14,7 +14,7 @@ except ImportError:
 
 
 PROJECT_DIR = r"/Users/bubble/Desktop/Model/Rhino/rhino_model"
-BUILD_MODULE = "builds.build_mesh"
+BUILD_MODULE = "builds.build_mesh_radial_weave"
 
 
 def ensure_project_path():

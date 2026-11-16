@@ -1,8 +1,9 @@
 import math
 
 # %% Parameters
-SMALL_HEX_SIDE = 2.0
-HEXES_PER_BIG_HEX_SIDE = 3
+SMALL_HEX_SIDE = 30.0
+HEXES_PER_BIG_HEX_SIDE = 5
+width = 2  # Hexagon border width.
 
 
 def _hex_center(q, r, side):
@@ -37,6 +38,8 @@ def build_model():
 
     if SMALL_HEX_SIDE <= 0.0:
         raise ValueError("SMALL_HEX_SIDE must be positive.")
+    if width <= 0.0:
+        raise ValueError("width must be positive.")
     if not HEXAGON_CENTERS:
         raise ValueError("Define at least one center in HEXAGON_CENTERS.")
 
@@ -46,7 +49,7 @@ def build_model():
             tools.create_polygon(center=center, sides=6, radius=SMALL_HEX_SIDE),
             layer_name,
         )
-        tools.solid_from_path(hexagon, "rectangle", width=0.2, height=0.5)
+        tools.solid_from_path(hexagon, "rectangle", width=width, height=0.5)
         tools.delete_object(hexagon)
 
     tools.finish_model()
